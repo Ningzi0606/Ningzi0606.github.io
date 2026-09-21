@@ -636,7 +636,7 @@ function loadPosts(depth = 0) {
       const { data, body } = parseFrontMatter(readText(full));
       const base = path.basename(file, path.extname(file));
       const slug = data.slug ? slugify(data.slug) : slugify(base);
-      const html = resolveRefs(renderMarkdown(body, depth), depth);
+      const html = renderMarkdown(body, depth);
       const title = data.title || base;
       const date = data.date ? String(data.date) : '';
       const excerpt = data.excerpt ? String(data.excerpt) : excerptOf(body, 140);
@@ -727,7 +727,7 @@ function loadVideos(depth = 0) {
   const file = path.join(CONTENT, 'videos.md');
   if (!fs.existsSync(file)) return { html: '', items: [] };
   const { body } = parseFrontMatter(readText(file));
-  const html = resolveRefs(renderMarkdown(body, depth), depth);
+  const html = renderMarkdown(body, depth);
 
   // 只扫描代码块 / 行内代码以外的内容，避免文档里的示例被当成真正的视频
   const scanText = body
@@ -755,7 +755,7 @@ function loadPage(name, depth = 0) {
   const file = path.join(CONTENT, `${name}.md`);
   if (!fs.existsSync(file)) return { data: {}, html: '' };
   const { data, body } = parseFrontMatter(readText(file));
-  return { data, html: resolveRefs(renderMarkdown(body, depth), depth) };
+  return { data, html: renderMarkdown(body, depth) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -843,21 +843,21 @@ ${links ? `<section class="block"><h2 class="block-title">联系我</h2><div cla
 ${recent.length ? `<section class="block">
   <h2 class="block-title"><a href="${url('posts/')}">${escapeHtml(config.home?.recentTitle || '最新文字')}</a></h2>
   <div class="cards">
-    ${recent.map(postCard).join('\n    ')}
+    ${recent.map((p) => postCard(p, 0)).join('\n    ')}
   </div>
 </section>` : ''}
 
 ${shots.length ? `<section class="block">
   <h2 class="block-title"><a href="${url('photos/')}">${escapeHtml(config.home?.latestPhotosTitle || '最新照片')}</a></h2>
   <div class="gallery gallery-home">
-    ${shots.map(photoFigure).join('\n    ')}
+    ${shots.map((p) => photoFigure(p, 0)).join('\n    ')}
   </div>
 </section>` : ''}
 
 ${vids.length ? `<section class="block">
   <h2 class="block-title"><a href="${url('videos/')}">${escapeHtml(config.home?.latestVideosTitle || '最新视频')}</a></h2>
   <div class="video-grid">
-    ${vids.map(videoFigure).join('\n    ')}
+    ${vids.map((v) => videoFigure(v, 0)).join('\n    ')}
   </div>
 </section>` : ''}`;
 
@@ -871,7 +871,7 @@ function postsIndexPage(posts) {
 </header>
 
 <div class="cards">
-  ${posts.map(postCard).join('\n  ') || '<p class="empty">还没有文章。在 content/posts/ 里新建一个 .md 文件即可。</p>'}
+  ${posts.map((p) => postCard(p, 1)).join('\n  ') || '<p class="empty">还没有文章。在 content/posts/ 里新建一个 .md 文件即可。</p>'}
 </div>`;
 
   return layout({ title: '文字', description: '所有文字记录', active: 'posts', body, depth: 1 });
