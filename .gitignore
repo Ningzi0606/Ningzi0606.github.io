@@ -10,6 +10,18 @@ node_modules/
 npm-debug.log*
 *.log
 
+# ── 自动生成的网页（由 build/build.js 产出，不提交）────────────────
+# 源文件（content/ 下的 .md、图片、音乐，以及 assets/、build/）才是要跟踪的。
+# 这样每次改一个字的文章，不会产生一整套新的 HTML 版本，仓库不会随时间膨胀。
+# GitHub Actions 在部署时会自动重新生成，所以线上完全不受影响。
+/index.html
+/404.html
+/posts/
+/photos/
+/videos/
+/about/
+/music/
+
 # 转码用的临时工具（ffmpeg 等，约 185MB，不要提交）
 .tools/
 

@@ -1172,6 +1172,29 @@ ${neteaseHtml}
   });
 }
 
+/** 404 页：访客走到不存在的地址时显示，而不是 GitHub 的默认报错页 */
+function notFoundPage(depth = 0) {
+  const body = `<header class="page-head">
+  <h1>页面走丢了</h1>
+  <p class="lede">这个地址下没有内容 —— 可能是链接写错了，或者页面被移走了。</p>
+</header>
+
+<div class="links">
+  <a class="pill" href="${url('', depth)}">回首页</a>
+  <a class="pill" href="${url('posts/', depth)}">看看文字</a>
+  <a class="pill" href="${url('photos/', depth)}">看看照片</a>
+  <a class="pill" href="${url('music/', depth)}">听听音乐</a>
+</div>`;
+
+  return layout({
+    title: '页面走丢了',
+    description: '没有找到这个页面',
+    active: '',
+    body,
+    depth
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* 构建                                                                */
 /* ------------------------------------------------------------------ */
@@ -1201,6 +1224,7 @@ function build() {
   write(path.join(ROOT, 'videos', 'index.html'), videosPage(videos.items, 1));
   write(path.join(ROOT, 'about', 'index.html'), aboutPage(1));
   write(path.join(ROOT, 'music', 'index.html'), musicPage(loadMusicList(), 1));
+  write(path.join(ROOT, '404.html'), notFoundPage(0));
   write(path.join(ROOT, '.nojekyll'), '');
 
   // 检查引用的本地媒体是否存在，提前提醒
