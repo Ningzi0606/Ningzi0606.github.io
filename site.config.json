@@ -4,7 +4,7 @@
   "tagline": "写一点文字，存一些照片，留几段视频。",
   "description": "一个极简的个人网站：文字、照片与视频。",
   "url": "https://ningzi0606.github.io",
-  "avatar": "assets/avatar.jpg",
+  "avatar": "assets/avatar-original.jpg",
   "avatarBadge": {
     "enabled": false,
     "text": "直播中"
