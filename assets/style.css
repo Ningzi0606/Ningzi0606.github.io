@@ -331,8 +331,8 @@ a:hover { color: var(--accent); }
 
 .avatar-frame {
   --avatar-size: 156px;        /* 头像边长 */
-  --avatar-scale: 118%;        /* 图片占比：放大一档，给左右平移留余量 */
-  --avatar-shift-x: -12px;     /* ← 左右移动图片：负数 = 人物左移（只动图片，外框不动） */
+  --avatar-scale: 100%;        /* 图片占比：100% = 整张图完整显示，不裁不偏 */
+  --avatar-shift-x: 0px;       /* ← 左右移动图片：负数左移、正数右移；0 = 居中 */
   --avatar-shift-y: 0px;       /* ← 上下移动图片：正数上移 */
   --avatar-radius: 10px;       /* 圆角：999px 会变成正圆并切掉四个角 */
 
