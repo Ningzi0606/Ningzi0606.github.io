@@ -564,6 +564,10 @@ function layout({ title, description, active, body, bodyClass = '', depth = 0, s
 <meta property="og:image" content="${escapeAttr(absoluteUrl(ogImage))}" />
 </head>
 <body${bodyClass ? ` class="${bodyClass}"` : ''}>
+<video class="wallpaper" autoplay muted loop playsinline preload="auto" poster="${url('assets/wallpaper-poster.jpg', depth)}" aria-hidden="true">
+  <source src="${url('assets/wallpaper.webm', depth)}" type="video/webm" />
+  <source src="${url('assets/wallpaper.mp4', depth)}" type="video/mp4" />
+</video>
 <a class="skip" href="#main">跳到正文</a>
 
 <header class="site-head">
