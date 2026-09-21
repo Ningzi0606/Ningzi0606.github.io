@@ -1,0 +1,25 @@
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# 依赖与日志
+node_modules/
+npm-debug.log*
+*.log
+
+# 转码用的临时工具（ffmpeg 等，约 185MB，不要提交）
+.tools/
+
+# 视频源分片（音视频分离的原始分片，合并成 mp4 后就没用了）
+content/media/*.m4s
+
+# 无损音频体积很大，不建议提交（需要就取消注释）
+# content/music/*.wav
+# content/music/*.flac
+
+# 大文件（如果你不想把它们提交到仓库，取消下面的注释）
+# content/media/*.mp4
+# assets/video/*.mp4

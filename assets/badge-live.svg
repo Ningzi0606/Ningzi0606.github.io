@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30" role="img" aria-label="直播中">
+  <rect x="0.75" y="0.75" width="28.5" height="28.5" rx="9" fill="#ffffff"/>
+  <g stroke="#f0447c" stroke-width="1.6" stroke-linecap="round">
+    <path d="M10.2 12.4v5.2"/>
+    <path d="M15 9.8v10.4"/>
+    <path d="M19.8 12.4v5.2"/>
+  </g>
+</svg>

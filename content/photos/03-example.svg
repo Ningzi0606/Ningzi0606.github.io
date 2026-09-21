@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="示例照片 03">
+  <defs>
+    <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2efe6"/>
+      <stop offset="1" stop-color="#dfe6ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#g3)"/>
+  <path d="M0 520c220-150 380 60 620 0s360-190 580-60v440H0z" fill="#ffffff" opacity="0.45"/>
+  <text x="60" y="120" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#6b7280">示例照片 03 · 换成你自己的图</text>
+</svg>

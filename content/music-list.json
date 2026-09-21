@@ -1,0 +1,83 @@
+{
+  "note": "右上角播放器读 content/music/ 里的音频文件；这个清单用于 /music/ 页面的网易云官方外链播放器。",
+  "profile": {
+    "uid": "318540064",
+    "nickname": "少年岂不照欸",
+    "playlist": "少年岂不照欸喜欢的音乐",
+    "playlistId": "442806887",
+    "playlistUrl": "https://music.163.com/playlist?id=442806887",
+    "profileUrl": "https://music.163.com/#/user/home?id=318540064"
+  },
+  "tracks": [
+    {
+      "id": "2689315186",
+      "name": "Sayin'",
+      "artists": "Jux",
+      "album": "Loss",
+      "duration": 137
+    },
+    {
+      "id": "3336029794",
+      "name": "Ninelie 钢琴 南南的琴",
+      "artists": "张南",
+      "album": "南南的琴流行钢琴曲集二",
+      "duration": 142
+    },
+    {
+      "id": "2161911317",
+      "name": "错把风月入墨",
+      "artists": "兰音Reine",
+      "album": "错把风月入墨",
+      "duration": 175
+    },
+    {
+      "id": "3355672045",
+      "name": "只对你有感觉",
+      "artists": "秋秋 / 洛米",
+      "album": "只对你有感觉",
+      "duration": 214
+    },
+    {
+      "id": "3387165693",
+      "name": "Don't Say",
+      "artists": "Jux",
+      "album": "STAY",
+      "duration": 219
+    },
+    {
+      "id": "2686252181",
+      "name": "STRUCT",
+      "artists": "UdieNnx",
+      "album": "UDISTRUCT",
+      "duration": 107
+    },
+    {
+      "id": "2698661893",
+      "name": "单删",
+      "artists": "999PUNKSTA",
+      "album": "单删",
+      "duration": 127
+    },
+    {
+      "id": "3431016095",
+      "name": "[FREE] 波纹 - SASIOVERLXRD x BOBBYNOPEACE Type Beat",
+      "artists": "Eee.T",
+      "album": "[免费伴奏] 波纹 - SASIOVERLXRD x BOBBYNOPEACE Type Beat",
+      "duration": 140
+    },
+    {
+      "id": "3390973264",
+      "name": "万山红遍",
+      "artists": "烬沉香",
+      "album": "红日升",
+      "duration": 146
+    },
+    {
+      "id": "2708842926",
+      "name": "赤潮回声",
+      "artists": "赧然",
+      "album": "赤潮回声",
+      "duration": 409
+    }
+  ]
+}

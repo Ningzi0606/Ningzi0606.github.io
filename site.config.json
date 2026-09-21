@@ -1,0 +1,26 @@
+{
+  "title": "霞光凝暮山紫",
+  "name": "霞光凝暮山紫",
+  "tagline": "写一点文字，存一些照片，留几段视频。",
+  "description": "一个极简的个人网站：文字、照片与视频。",
+  "url": "https://ningzi0606.github.io",
+  "avatar": "assets/avatar.jpg",
+  "avatarBadge": {
+    "enabled": false,
+    "text": "直播中"
+  },
+  "footer": "© 2026 霞光凝暮山紫 · 由一台安静的生成器构建",
+  "home": {
+    "recentTitle": "最新文字",
+    "recentCount": 3,
+    "latestPhotosTitle": "最新照片",
+    "latestPhotosCount": 6,
+    "latestVideosTitle": "最新视频",
+    "latestVideosCount": 2
+  },
+  "links": [
+    { "label": "B站", "url": "https://space.bilibili.com/341919319" },
+    { "label": "网易云", "url": "https://music.163.com/#/user/home?id=318540064" },
+    { "label": "GitHub", "url": "https://github.com/Ningzi0606" }
+  ]
+}
