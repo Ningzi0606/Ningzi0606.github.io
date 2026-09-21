@@ -509,6 +509,7 @@ function navHtml(active, depth = 0) {
     { key: 'posts', label: '文字', href: 'posts/' },
     { key: 'photos', label: '照片', href: 'photos/' },
     { key: 'videos', label: '视频', href: 'videos/' },
+    { key: 'music', label: '音乐', href: 'music/' },
     { key: 'about', label: '关于', href: 'about/' }
   ];
   return items
@@ -904,7 +905,7 @@ function photosPage(photos, depth = 1) {
   const page = loadPage('photos', depth);
   const body = `<header class="page-head">
   <h1>照片</h1>
-  <p class="lede">共 ${photos.length} 张。把图片放进 content/photos/ 再运行一次生成命令即可。</p>
+  <p class="lede">共 ${photos.length} 张。</p>
 </header>
 
 ${page.html ? `<div class="prose">\n${page.html}\n</div>` : ''}
@@ -913,7 +914,7 @@ ${photos.length
       ? `<div class="gallery">
   ${photos.map((p) => photoFigure(p, depth)).join('\n  ')}
 </div>`
-      : '<p class="empty">相册还是空的。把 .jpg / .png 图片放进 content/photos/ 后运行 node build/build.js。</p>'}`;
+      : '<p class="empty">相册还是空的。</p>'}`;
 
   return layout({
     title: '照片',
@@ -936,7 +937,7 @@ ${videos.length
       ? `<div class="video-grid">
   ${videos.map((v) => videoFigure(v, depth)).join('\n  ')}
 </div>`
-      : '<p class="empty">还没有视频。在 <code>content/videos.md</code> 里用 <code>::video[地址]</code> 添加。</p>'}
+      : '<p class="empty">还没有视频。</p>'}
 
 ${page.html ? `<div class="prose">\n${page.html}\n</div>` : ''}`;
 
@@ -1126,7 +1127,7 @@ function musicPage(netease, depth = 1) {
   </li>`)
     .join('\n  ')}
 </ul>`
-    : '<p class="empty">还没有本地曲目。把音频文件放进 <code>content/music/</code> 后重新生成即可。</p>';
+    : '<p class="empty">还没有本地曲目。</p>';
 
   const neteaseHtml = netease && netease.tracks.length
     ? `<section class="block" id="netease">
@@ -1157,14 +1158,12 @@ ${netease.tracks
 
 ${nowPlaying}
 
-${neteaseHtml}
-
-<p class="note">歌名、歌手、专辑和封面都是从音频文件的 ID3 标签里读出来的，所以换歌只需要把文件丢进 <code>content/music/</code> 再生成一次。</p>`;
+${neteaseHtml}`;
 
   return layout({
     title: '音乐',
     description: '我的音乐',
-    active: 'about',
+    active: 'music',
     body,
     bodyClass: 'page-music',
     depth,
