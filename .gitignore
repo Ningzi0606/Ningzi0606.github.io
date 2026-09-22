@@ -25,6 +25,9 @@ npm-debug.log*
 # 转码用的临时工具（ffmpeg 等，约 185MB，不要提交）
 .tools/
 
+# 已被取代的旧素材（保留在本地备查，不提交）
+_unused/
+
 # 视频源分片（音视频分离的原始分片，合并成 mp4 后就没用了）
 content/media/*.m4s
 
