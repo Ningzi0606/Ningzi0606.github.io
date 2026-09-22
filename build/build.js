@@ -163,8 +163,12 @@ function write(file, content) {
  * 生成相对路径，这样用双击打开 index.html 也能正常显示。
  */
 function url(target, depth) {
+  const s = String(target || '');
+  // 外链（含协议或协议相对）原样返回，不要拼相对路径前缀，
+  // 否则会生成 ../https://... 这种坏地址。
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(s)) return s;
   const prefix = depth > 0 ? '../'.repeat(depth) : '';
-  const clean = String(target || '').replace(/^\/+/, '');
+  const clean = s.replace(/^\/+/, '');
   return prefix + clean;
 }
 
@@ -419,17 +423,20 @@ function inline(text, depth = 0) {
     return `\u0000code${codes.length - 1}\u0000`;
   });
 
-  // ::video[地址]{poster="封面地址"} —— 本地文件、YouTube、Bilibili 都支持
+  // ::video[地址]{poster="封面地址" hls="HLS 主播放列表"} —— 本地文件、YouTube、Bilibili 都支持
   // 生成的 HTML 先存起来、用占位符代替，等转义完成后再还原，
   // 否则下面的 escapeHtml 会把 <div> 转成 &lt;div&gt;，视频就变成一串源代码了。
   const embeds = [];
   s = s.replace(/::video\[([^\]]+)\](?:\{([^}]*)\})?/g, (_, src, opts) => {
     let poster = '';
+    let hls = '';
     if (opts) {
       const m = opts.match(/poster\s*=\s*"?([^",}]+)"?/);
       if (m) poster = m[1].trim();
+      const h = opts.match(/hls\s*=\s*"?([^",}]+)"?/);
+      if (h) hls = h[1].trim();
     }
-    embeds.push(videoEmbed(src.trim(), poster, depth));
+    embeds.push(videoEmbed(src.trim(), poster, depth, hls));
     return `\u0000video${embeds.length - 1}\u0000`;
   });
 
@@ -478,8 +485,44 @@ function external(href, depth = 0) {
   return url(href, depth);
 }
 
-/** 视频嵌入：本地文件用 <video>，YouTube / Bilibili 用 <iframe> */
-function videoEmbed(src, poster, depth = 0) {
+/**
+ * 检查一个 HLS 目录是否真的完整可用：
+ * 主播放列表里的每一档，其媒体播放列表和第一个分片都要存在。
+ * 只看 index.m3u8 存在会误判（分片可能没部署上去）。
+ */
+function hlsLooksComplete(dir) {
+  try {
+    const master = fs.readFileSync(path.join(dir, 'index.m3u8'), 'utf8');
+    const variants = master
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && l[0] !== '#');
+    if (!variants.length) return false;
+
+    return variants.every((v) => {
+      const mediaPath = path.join(dir, v);
+      if (!fs.existsSync(mediaPath)) return false;
+      const media = fs.readFileSync(mediaPath, 'utf8');
+      const lines = media.split(/\r?\n/).map((l) => l.trim());
+      // 初始化段（EXT-X-MAP）
+      const mapLine = lines.find((l) => l.startsWith('#EXT-X-MAP:'));
+      if (mapLine) {
+        const m = mapLine.match(/URI="([^"]+)"/);
+        if (m && !fs.existsSync(path.join(dir, m[1]))) return false;
+      }
+      // 至少要有第一个分片
+      const firstSeg = lines.find((l) => l && l[0] !== '#' && /\.(m4s|ts|mp4)$/.test(l));
+      if (!firstSeg) return false;
+      return fs.existsSync(path.join(dir, firstSeg));
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
+/** 视频嵌入：本地文件用 <video>，YouTube / Bilibili 用 <iframe>
+    hlsSrc 不为空时，本地视频走 HLS 自适应流（多码率） */
+function videoEmbed(src, poster, depth = 0, hlsSrc = '') {
   const yt = src.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
   if (yt) {
     return `<div class="embed"><iframe src="https://www.youtube.com/embed/${yt[1]}" title="video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
@@ -492,7 +535,27 @@ function videoEmbed(src, poster, depth = 0) {
 
   const ext = path.extname(src.split(/[?#]/)[0]).toLowerCase();
   if (VIDEO_EXT.includes(ext)) {
-    return `<video class="player" src="${url(src, depth)}" controls playsinline preload="metadata"${poster ? ` poster="${url(poster, depth)}"` : ''}></video>`;
+    // 没显式给 hls= 时，自动探测同名目录下是否已有【完整】的 HLS
+    // （build/hls.ps1 的产出）。只检查 index.m3u8 存在是不够的：
+    // 分片可能没部署上去，那样播放器会去加载一个空壳然后失败。
+    let hls = hlsSrc;
+    if (!hls) {
+      const dirName = path.join(path.dirname(src), path.basename(src, path.extname(src)));
+      const masterRel = path.join(dirName, 'index.m3u8');
+      const masterAbs = path.join(ROOT, masterRel);
+      if (fs.existsSync(masterAbs) && hlsLooksComplete(path.join(ROOT, dirName))) {
+        hls = masterRel.split(path.sep).join('/');
+      }
+    }
+    // 有 HLS 时交给 assets/hls-player.js 接管（原生支持或 MSE），
+    // 同时保留 src 作为回退，两边都不可用时至少还能直接播 MP4。
+    const hlsAttr = hls ? ` data-hls="${escapeAttr(url(hls, depth))}"` : '';
+    const cls = hls ? 'player player-hls' : 'player';
+    return `<div class="video-shell">` +
+      `<video class="${cls}" src="${url(src, depth)}" controls playsinline preload="metadata"` +
+      `${poster ? ` poster="${url(poster, depth)}"` : ''}${hlsAttr}></video>` +
+      `<div class="video-status" hidden><span class="vs-spinner" aria-hidden="true"></span><span class="vs-text"></span></div>` +
+      `</div>`;
   }
 
   // 兜底：当作外链视频
@@ -564,10 +627,6 @@ function layout({ title, description, active, body, bodyClass = '', depth = 0, s
 <meta property="og:image" content="${escapeAttr(absoluteUrl(ogImage))}" />
 </head>
 <body${bodyClass ? ` class="${bodyClass}"` : ''}>
-<video class="wallpaper" autoplay muted loop playsinline preload="auto" poster="${url('assets/wallpaper-poster.jpg', depth)}" aria-hidden="true">
-  <source src="${url('assets/wallpaper.webm', depth)}" type="video/webm" />
-  <source src="${url('assets/wallpaper.mp4', depth)}" type="video/mp4" />
-</video>
 <a class="skip" href="#main">跳到正文</a>
 
 <header class="site-head">
@@ -575,30 +634,48 @@ function layout({ title, description, active, body, bodyClass = '', depth = 0, s
     <a class="brand name-gradient" href="${url('', depth)}">${escapeHtml(config.name || siteTitle)}</a>
     <nav class="nav">
         ${navHtml(active, depth)}
-    </nav>${hasPlayer ? `
-    <div class="music-player" data-music-player hidden data-tracks="${escapeAttr(JSON.stringify(tracksData))}">
-      <button class="mp-btn" type="button" aria-label="播放" title="播放">${first.cover
-        ? `<img class="mp-cover" src="${escapeAttr(first.cover)}" alt="" />`
-        : `<svg class="mp-icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
-        <svg class="mp-icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zM13 5h3v14h-3z"/></svg>`}
-        <span class="mp-btn-overlay" aria-hidden="true">
-          <svg class="mp-icon-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
-          <svg class="mp-icon-pause" viewBox="0 0 24 24"><path d="M8 5h3v14H8zM13 5h3v14h-3z"/></svg>
-        </span>
-      </button>
-      <div class="mp-info">
-        <span class="mp-title" role="button" tabindex="0" title="点击切换下一首">${escapeHtml(first.title)}</span>
-        <span class="mp-meta">${escapeHtml([first.artist, first.album].filter(Boolean).join(' · '))}</span>
-        <div class="mp-progress" role="slider" tabindex="0" aria-label="播放进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <span class="mp-progress-fill"></span>
-        </div>
-      </div>
-      <button class="mp-volume" type="button" aria-label="静音" title="静音">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h3.5L12 19V5L7.5 9H4z"/><path class="mp-wave" d="M15.5 9.2a4 4 0 0 1 0 5.6M18 7a7.4 7.4 0 0 1 0 10"/></svg>
-      </button>
-    </div>` : ''}
+    </nav>
+    <span class="nav-spacer" aria-hidden="true"></span>
   </div>
 </header>
+${hasPlayer ? `
+<!-- 音乐播放器：固定在右上角悬浮（不占导航栏空间，导航不会被挤成两行） -->
+<div class="music-player" data-music-player hidden data-tracks="${escapeAttr(JSON.stringify(tracksData))}">
+  <button class="mp-btn" type="button" aria-label="播放" title="播放">${first.cover
+    ? `<img class="mp-cover" src="${escapeAttr(first.cover)}" alt="" />`
+    : `<svg class="mp-icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+    <svg class="mp-icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zM13 5h3v14h-3z"/></svg>`}
+    <span class="mp-btn-overlay" aria-hidden="true">
+      <svg class="mp-icon-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
+      <svg class="mp-icon-pause" viewBox="0 0 24 24"><path d="M8 5h3v14H8zM13 5h3v14h-3z"/></svg>
+    </span>
+  </button>
+  <div class="mp-info">
+    <span class="mp-title" role="button" tabindex="0" title="点击切换下一首">${escapeHtml(first.title)}</span>
+    <span class="mp-meta">${escapeHtml([first.artist, first.album].filter(Boolean).join(' · '))}</span>
+    <div class="mp-progress" role="slider" tabindex="0" aria-label="播放进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="mp-progress-fill"></span>
+    </div>
+  </div>
+  <button class="mp-mode" type="button" data-mode="list" aria-label="播放模式：连续播放" title="播放模式：连续播放">
+    <svg class="mp-mode-icon mp-mode-list" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11l-2.5-2.5L14 3l4.5 4.5L14 12l-1.5-1.5L15 8H4zM4 16h11l-2.5-2.5L14 12l4.5 4.5L14 21l-1.5-1.5L15 17H4z"/></svg>
+    <svg class="mp-mode-icon mp-mode-single" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11l-2.5-2.5L14 3l4.5 4.5L14 12l-1.5-1.5L15 8H4zM4 16h11l-2.5-2.5L14 12l4.5 4.5L14 21l-1.5-1.5L15 17H4z"/><path class="mp-one" d="M10.6 12.4h1.3v3.2h-1.3zm1.3-1.1h-1.3v1h1.3z"/></svg>
+    <svg class="mp-mode-icon mp-mode-shuffle" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 4.5 20.5 8 16 11.5V9.2h-1.6c-1 0-1.6.4-2.3 1.3l-.9 1.2-1-1.4.8-1.1C11.9 7.9 12.9 7.2 14.4 7.2H16zM16 12.5 20.5 16 16 19.5v-2.3h-1.6c-1.5 0-2.5-.7-3.4-2l-2.6-3.6c-.7-.9-1.3-1.3-2.3-1.3H4V8.2h2.1c1.5 0 2.5.7 3.4 2l2.6 3.6c.7.9 1.3 1.3 2.3 1.3H16z"/><path d="M4 15.8h1.6c1 0 1.6-.4 2.3-1.3l.6-.8 1 1.4-.5.7c-.9 1.3-1.9 2-3.4 2H4z"/></svg>
+  </button>
+  <button class="mp-list-btn" type="button" aria-label="播放列表" title="播放列表" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>
+  </button>
+  <button class="mp-volume" type="button" aria-label="静音" title="静音">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h3.5L12 19V5L7.5 9H4z"/><path class="mp-wave" d="M15.5 9.2a4 4 0 0 1 0 5.6M18 7a7.4 7.4 0 0 1 0 10"/></svg>
+  </button>
+  <div class="mp-panel" hidden>
+    <div class="mp-panel-head">
+      <span class="mp-panel-title">播放列表</span>
+      <span class="mp-panel-count"></span>
+    </div>
+    <ul class="mp-panel-list"></ul>
+  </div>
+</div>` : ''}
 
 <main id="main" class="wrap">
 ${body}
@@ -745,13 +822,16 @@ function loadVideos(depth = 0) {
   while ((m = re.exec(scanText))) {
     let poster = '';
     let title = '';
+    let hls = '';
     if (m[2]) {
       const p = m[2].match(/poster\s*=\s*"?([^",}]+)"?/);
       const t = m[2].match(/title\s*=\s*"?([^",}]+)"?/);
+      const h = m[2].match(/hls\s*=\s*"?([^",}]+)"?/);
       if (p) poster = p[1].trim();
       if (t) title = t[1].trim();
+      if (h) hls = h[1].trim();
     }
-    items.push({ src: m[1].trim(), poster, title: title || `视频 ${items.length + 1}` });
+    items.push({ src: m[1].trim(), poster, title: title || `视频 ${items.length + 1}`, hls });
   }
   return { html, items };
 }
@@ -786,7 +866,7 @@ function photoFigure(photo, depth = 0) {
 
 function videoFigure(v, depth = 0) {
   return `<figure class="video-item">
-  <div class="video-frame">${videoEmbed(v.src, v.poster, depth)}</div>
+  <div class="video-frame">${videoEmbed(v.src, v.poster, depth, v.hls)}</div>
   ${v.title ? `<figcaption>${escapeHtml(v.title)}</figcaption>` : ''}
 </figure>`;
 }
@@ -843,8 +923,6 @@ function homePage(posts, photos, videos) {
 ${page.html}
 </section>
 
-${links ? `<section class="block"><h2 class="block-title">联系我</h2><div class="links">\n      ${links}\n    </div></section>` : ''}
-
 ${recent.length ? `<section class="block">
   <h2 class="block-title"><a href="${url('posts/')}">${escapeHtml(config.home?.recentTitle || '最新文字')}</a></h2>
   <div class="cards">
@@ -859,12 +937,12 @@ ${shots.length ? `<section class="block">
   </div>
 </section>` : ''}
 
-${vids.length ? `<section class="block">
-  <h2 class="block-title"><a href="${url('videos/')}">${escapeHtml(config.home?.latestVideosTitle || '最新视频')}</a></h2>
-  <div class="video-grid">
-    ${vids.map((v) => videoFigure(v, 0)).join('\n    ')}
-  </div>
-</section>` : ''}`;
+${links ? `<section class="block block-contact"><h2 class="block-title">联系我</h2><div class="links">\n      ${links}\n    </div></section>` : ''}`;
+
+  // 首页不再展示「最新视频」区块：视频只在「视频」页出现。
+  // 想在首页恢复它，把上面 `${shots.length ...}` 那段后面接回视频区块即可
+  // （vids / videoFigure 都还在，只是首页不再调用）。
+  void vids;
 
   return layout({ title: '', description: config.description, active: 'home', body, bodyClass: 'page-home' });
 }
@@ -930,8 +1008,19 @@ ${photos.length
   });
 }
 
+/** 视频页专用的正文读取：去掉 ::video 指令，避免同一个视频渲染两次 */
+function loadPageWithoutVideo(name, depth = 0) {
+  const file = path.join(CONTENT, `${name}.md`);
+  if (!fs.existsSync(file)) return { data: {}, html: '' };
+  const { data, body } = parseFrontMatter(readText(file));
+  const stripped = body.replace(/^[ \t]*::video\[[^\]]*\](?:\{[^}]*\})?[ \t]*$/gm, '');
+  return { data, html: renderMarkdown(stripped, depth) };
+}
+
 function videosPage(videos, depth = 1) {
-  const page = loadPage('videos', depth);
+  const page = loadPageWithoutVideo('videos', depth);
+  // 视频统一由上面的列表渲染；正文里只剩说明文字，不会再出现第二个播放器。
+
   const body = `<header class="page-head">
   <h1>视频</h1>
   <p class="lede">共 ${videos.length} 段。</p>
@@ -945,13 +1034,23 @@ ${videos.length
 
 ${page.html ? `<div class="prose">\n${page.html}\n</div>` : ''}`;
 
-  return layout({ title: '视频', description: '视频', active: 'videos', body, bodyClass: 'page-videos', depth });
+  return layout({
+    title: '视频',
+    description: '视频',
+    active: 'videos',
+    body,
+    bodyClass: 'page-videos',
+    depth
+  });
 }
 
 function aboutPage(depth = 1) {
   const page = loadPage('about', depth);
   const links = linkPills(depth);
-  const music = musicSection(loadMusicList());
+  // 这里以前还挂了 musicSection()（「我在听」+「网易云歌单」两个板块），
+  // 和「音乐」页内容重复，已按需求从「关于」页去掉。
+  // 想恢复：把下面这行加回来，并在 body 里补上 ${music}。
+  // const music = musicSection(loadMusicList());
 
   const body = `<header class="page-head">
   <h1>${escapeHtml(page.data.title || '关于我')}</h1>
@@ -960,8 +1059,6 @@ function aboutPage(depth = 1) {
 <div class="prose">
 ${page.html}
 </div>
-
-${music}
 
 ${links ? `<section class="block"><h2 class="block-title">联系方式</h2><div class="links">\n      ${links}\n    </div></section>` : ''}`;
 
@@ -1133,12 +1230,17 @@ function musicPage(netease, depth = 1) {
 </ul>`
     : '<p class="empty">还没有本地曲目。</p>';
 
+  // 按钮行和「关于」页一样包进 .links，间距才跟全站统一（gap: .6rem / 下边距 --block-gap）
+  const buttons = [
+    p.profileUrl ? `<a class="pill" href="${escapeAttr(p.profileUrl)}" target="_blank" rel="noopener">我的网易云主页</a>` : '',
+    p.playlistUrl ? `<a class="pill" href="${escapeAttr(p.playlistUrl)}" target="_blank" rel="noopener">完整歌单</a>` : ''
+  ].filter(Boolean).join('\n      ');
+
   const neteaseHtml = netease && netease.tracks.length
     ? `<section class="block" id="netease">
   <h2 class="block-title">网易云歌单</h2>
   <p class="lede">来自我的网易云歌单「${escapeHtml(p.playlist || '我喜欢的音乐')}」，挑了前 ${netease.tracks.length} 首。用的是网易云官方外链播放器，需要登录网易云才能听完整版。</p>
-  ${[p.profileUrl ? `<a class="pill" href="${escapeAttr(p.profileUrl)}" target="_blank" rel="noopener">我的网易云主页</a>` : '',
-     p.playlistUrl ? `<a class="pill" href="${escapeAttr(p.playlistUrl)}" target="_blank" rel="noopener">完整歌单</a>` : ''].filter(Boolean).join('\n      ')}
+  ${buttons ? `<div class="links">\n      ${buttons}\n    </div>` : ''}
   <ul class="tracks">
 ${netease.tracks
       .map((t, i) => `<li class="track">

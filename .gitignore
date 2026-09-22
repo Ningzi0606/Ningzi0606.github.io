@@ -31,6 +31,14 @@ _unused/
 # 视频源分片（音视频分离的原始分片，合并成 mp4 后就没用了）
 content/media/*.m4s
 
+# ── HLS 流产物（由 build/hls.ps1 生成，约 140MB/视频，不提交）──────────
+# 分片都可以随时重新生成：powershell -File build/hls.ps1
+# 留下 *.m3u8 也没意义，因为它们引用的分片不在仓库里。
+assets/video/*/*.m4s
+assets/video/*/init-*.mp4
+assets/video/*/*.m3u8
+assets/video/*/manifest.mpd
+
 # 无损音频体积很大，不建议提交（需要就取消注释）
 # content/music/*.wav
 # content/music/*.flac

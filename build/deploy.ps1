@@ -28,6 +28,28 @@ Set-Location $root
 
 function Say($text, $color = 'Gray') { Write-Host $text -ForegroundColor $color }
 
+# ---------- 0. 检查所有 .ps1 的编码 ----------
+# Windows PowerShell 5.1 会把「UTF-8 无 BOM」的文件按 GBK 解码，
+# 中文注释和字符串会变乱码，导致"缺少表达式 / 意外的标记"这类诡异语法错误。
+# 这里主动体检一次，免得以后新加的脚本再踩坑。
+$badEncoding = @()
+Get-ChildItem (Join-Path $root 'build') -Filter '*.ps1' -File | ForEach-Object {
+  $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
+  $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+  if (-not $hasBom) { $badEncoding += $_.Name }
+}
+if ($badEncoding.Count -gt 0) {
+  Say '以下脚本是 UTF-8 无 BOM，在 PowerShell 5.1 下会因中文乱码报语法错：' 'Yellow'
+  $badEncoding | ForEach-Object { Say "    build\$_" 'Yellow' }
+  Say '自动补上 BOM…' 'Cyan'
+  foreach ($name in $badEncoding) {
+    $full = Join-Path (Join-Path $root 'build') $name
+    $text = [System.IO.File]::ReadAllText($full, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText($full, $text, [System.Text.UTF8Encoding]::new($true))
+    Say "    已修复 $name" 'Green'
+  }
+}
+
 # ---------- 1. 检查 git ----------
 $git = (Get-Command git -ErrorAction SilentlyContinue).Source
 if (-not $git) {

@@ -33,13 +33,13 @@ node build/build.js
 
 - **粗体**、*斜体*、~~删除线~~ 和 `行内代码`
 - 链接：[我的 GitHub](https://github.com)
-- 图片：`![说明](content/photos/01-example.svg)`
+- 图片：`![说明](content/photos/04-雪中兔.jpg)`
 - 列表、引用、表格、代码块
 - 视频：`::video[地址]`（本地文件、B 站、YouTube 都行）
 
 > 引用块是这样的。用来放一句想单独强调的话。
 
-![示例图片](content/photos/02-example.svg)
+![示例图片](content/photos/04-雪中兔.jpg)
 
 ## 不想公开的草稿
 
